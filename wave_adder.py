@@ -1,3 +1,7 @@
+# Code written by 18alantom
+# Full repo can be viewed at
+# https://github.com/18alantom/synth
+
 class WaveAdder:
     def __init__(self, *oscillators):
         self.oscillators = oscillators

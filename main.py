@@ -1,11 +1,7 @@
-import time
 import math
 from ADCDevice import *
-from  soundplayer import SoundPlayer
 import pyaudio
-import itertools
 import numpy as np
-from Oscillator import Oscillator
 from sine_oscillator import SineOscillator
 from square_oscillator import SquareOscillator
 from sawtooth_oscillator import SawtoothOscillator
@@ -21,28 +17,22 @@ NOTE_AMP = 0.1
 
 # -- HELPER FUNCTIONS --
 
-#def my_get_samples(oscillator, num_samples=BUFFER_SIZE):
-#    sampleList = []
-#    for _ in range(num_samples):
-#        sampleList.append(next(oscillator) * 32767)
-#        
-#    return sampleList
-
+# Generates the next 'num_samples' number of values
+# from the given oscillator. This is set up to eventually
+# implement the waveAdder in which multiple oscillators
+# can be added together, but currently only one oscillator
+# is used
 def my_get_samples(waveAdder, num_samples=BUFFER_SIZE):
     oscillators = waveAdder.oscillators
     sampleList = []
-    sum = 0;
+    sum = 0
     for _ in range(num_samples):
         sampleList.append(next(oscillators[0][0]) * 32767)
         
-#        sum = 0
-#        for x in range(waveAdder.n):
-#            sum = (sum + next(oscillators[0][x])) / 2
-            
-#        sampleList.append(sum * 32767)
-        
     return sampleList
 
+# Updates the frequency of the oscillator to be the 
+# frequency selected by the potentiometer
 def setNote(oscillators, note):
     for x in range(len(oscillators)):
         oscillators[x]._f = note
@@ -66,11 +56,13 @@ stream = pyaudio.PyAudio().open(
 
 dev = 0
 
-
+# Frequencies in C Major scale
 notes = [587.33, 523.25, 493.88, 440.00, 392.00, 349.23, 329.63, 293.66, 261.63, 246.94, 220.00, 196.00, 174.61, 164.81, 146.83, 130.81, 123.47, 110.00]
 
 adc = ADCDevice() # Define an ADCDevice class object
 
+# Initializes and sets up both Analog Digital Converter
+# and push button
 def setup():
     global adc
     if(adc.detectI2C(0x48)): # Detect the pcf8591.
@@ -86,9 +78,11 @@ def setup():
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         
+# Main event loop        
 def loop():
     global notes
     global dev
+    # Create oscillators
     sine1 = SineOscillator(freq=440, phase=0, amp=1)
     square1 = SquareOscillator(freq=440, phase=0, amp=0.5)
     sawtooth1 = SawtoothOscillator()
@@ -97,6 +91,7 @@ def loop():
     allOscillators = [sine1, square1, sawtooth1, triangle1]
     oscillators = [square1]
     
+    # set up oscillators
     initializeOscillators(allOscillators)
     
     waveAdder = WaveAdder(oscillators)
@@ -106,6 +101,9 @@ def loop():
     oscillators[0] = allOscillators[oscIndex]
     
     while True:
+        # If button is pressed change the active oscillator. 
+        # Button can only be registered as pressed again after
+        # being released
         if not buttonIsPressed:
            if GPIO.input(BUTTON_PIN)==GPIO.LOW:
                buttonIsPressed = True
@@ -117,14 +115,19 @@ def loop():
             if GPIO.input(BUTTON_PIN)==GPIO.HIGH:
                 buttonIsPressed = False
 
+        # Select note based on potentiometer value
         value = adc.analogRead(0)    # read the ADC value of channel 0
         arrIndex = math.floor(value / 15)
         note = notes[arrIndex]
                 
+        # Change oscillator not to current note selected        
         setNote(oscillators, note)        
                 
+        # Generate wave values based on oscillator and note        
         samples = my_get_samples(waveAdder)
         samples = np.int16(samples).tobytes()
+
+        # Send generated wave values to speaker
         stream.write(samples)
         
 

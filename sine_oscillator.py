@@ -1,3 +1,7 @@
+# Code written by 18alantom
+# Full repo can be viewed at
+# https://github.com/18alantom/synth
+
 from Oscillator import Oscillator
 import math
 
